@@ -2,12 +2,12 @@
 function addButtonToTableRows() {
   // Select the form with ID "tickets"
   const form = document.getElementById("tickets");
-  
+
   // Check if the form exists
   if (form) {
     // Select all tbody elements within the form
     const tables = form.querySelectorAll("tbody");
-    
+
     tables.forEach(tbody => {
       const rows = tbody.querySelectorAll("tr");
       rows.forEach(row => {
@@ -82,7 +82,14 @@ function observeDOMChanges() {
   observer.observe(document.body, { childList: true, subtree: true });
 }
 
-// Run the function when the content script is loaded
-addButtonToTableRows();
-observeDOMChanges();
+// Only run the addon if the title and meta tag are present
+function shouldRunAddon() {
+  const title = document.title;
+  const metaTag = document.querySelector('meta[name="tip-namespace"]');
+  return title.includes("osTicket") && metaTag && metaTag.content === "tickets.queue";
+}
 
+if (shouldRunAddon()) {
+  addButtonToTableRows();
+  observeDOMChanges();
+}
