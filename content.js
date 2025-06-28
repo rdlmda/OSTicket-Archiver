@@ -44,14 +44,13 @@ function addButtonToTableRows() {
       });
     });
 
-    // Restore archived rows
-    restoreArchivedRows(targetColIndex);
-  }
-}
     // If targetColIndex remains null (e.g., when the header isn’t found), calling restoreArchivedRows(null) will lead to invalid cell lookups. Add a guard to only call restoreArchivedRows when targetColIndex is non-null.
     if (targetColIndex !== null) {
       restoreArchivedRows(targetColIndex);
     }
+  }
+}
+
 function archiveRow(targetCellText) {
   // Get the current archived rows from storage
   browser.storage.local.get("archivedRows").then(result => {
@@ -70,6 +69,7 @@ function restoreArchivedRows(targetColIndex) {
       const form = document.getElementById("tickets");
       const rows = form ? form.querySelectorAll("tbody tr") : [];
       rows.forEach(row => {
+        const cellText = row.cells[targetColIndex]?.textContent.trim();
         if (cellText === targetCellText) {
           row.remove();
         }
