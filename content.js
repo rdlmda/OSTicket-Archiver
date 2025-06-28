@@ -25,8 +25,8 @@ function addButtonToTableRows() {
             if (targetColIndex !== null) {
               const targetCellText = row.cells[targetColIndex]?.textContent.trim();
               if (targetCellText) {
-                row.remove();
                 archiveRow(targetCellText);
+                restoreArchivedRows(targetColIndex);
               }
             }
           });
@@ -62,7 +62,7 @@ function restoreArchivedRows(targetColIndex) {
       rows.forEach(row => {
         const cellText = row.cells[targetColIndex]?.textContent.trim();
         if (cellText === targetCellText) {
-          row.remove();
+          row.setAttribute('hidden', true);
         }
       });
     });
@@ -70,6 +70,7 @@ function restoreArchivedRows(targetColIndex) {
 }
 
 // Observe the entire document body for child node changes
+// Needed for when pages are reloaded via AJAX / PJAX on menu clicks
 function observeDOMChanges() {
   const observer = new MutationObserver((mutationsList) => {
     for (const mutation of mutationsList) {
