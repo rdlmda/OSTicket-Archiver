@@ -1,11 +1,8 @@
-// Function to add a button to each row of tables inside the form with ID "tickets"
 function addButtonToTableRows() {
-  // Select the form with ID "tickets"
   const form = document.getElementById("tickets");
 
-  // Check if the form exists
   if (form) {
-    // Find the column index with th[data-id="10"]
+    // The "Last Updated" column can be at any postition, but its data-id is always 10
     let targetColIndex = null;
     const thead = form.querySelector("thead");
     if (thead) {
@@ -13,32 +10,27 @@ function addButtonToTableRows() {
       targetColIndex = ths.findIndex(th => th.getAttribute("data-id") === "10");
     }
 
-    // Select all tbody elements within the form
     const tables = form.querySelectorAll("tbody");
 
     tables.forEach(tbody => {
       const rows = tbody.querySelectorAll("tr");
       rows.forEach(row => {
-        // Check if the button already exists to avoid duplicates
-        if (!row.querySelector("button")) {
-          // Create a new button with type "button"
+        if (!row.querySelector("button")) { // Avoid duplicates
           const button = document.createElement("button");
           button.type = "button";
           button.textContent = "Archive";
           button.style.marginLeft = "10px";
 
-          // Add an event listener to the button
           button.addEventListener("click", () => {
             if (targetColIndex !== null) {
               const targetCellText = row.cells[targetColIndex]?.textContent.trim();
               if (targetCellText) {
                 row.remove();
-                archiveRow(targetCellText); // Archive the row based on the target column's cell text
+                archiveRow(targetCellText);
               }
             }
           });
 
-          // Append the button to the row
           row.appendChild(button);
         }
       });
@@ -51,8 +43,8 @@ function addButtonToTableRows() {
   }
 }
 
+// Save list of archived rows to local storage
 function archiveRow(targetCellText) {
-  // Get the current archived rows from storage
   browser.storage.local.get("archivedRows").then(result => {
     const archivedRows = result.archivedRows || [];
     archivedRows.push(targetCellText);
@@ -60,9 +52,8 @@ function archiveRow(targetCellText) {
   });
 }
 
-// Function to restore archived rows
+// Retrieve (and parse) list of archived rows from local storage
 function restoreArchivedRows(targetColIndex) {
-  // Get the archived rows from storage
   browser.storage.local.get("archivedRows").then(result => {
     const archivedRows = result.archivedRows || [];
     archivedRows.forEach(targetCellText => {
@@ -78,19 +69,17 @@ function restoreArchivedRows(targetColIndex) {
   });
 }
 
-// Function to observe changes in the entire document
+// Observe the entire document body for child node changes
 function observeDOMChanges() {
   const observer = new MutationObserver((mutationsList) => {
-    // Reapply the button-adding logic only if new nodes are added
     for (const mutation of mutationsList) {
       if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-        addButtonToTableRows(); // Reapply the button-adding logic
+        addButtonToTableRows(); // Reapply the button-adding logic only if new nodes are added
         break; // Exit after handling the first mutation
       }
     }
   });
 
-  // Start observing the entire document body for child node changes
   observer.observe(document.body, { childList: true, subtree: true });
 }
 
