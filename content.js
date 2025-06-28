@@ -9,12 +9,8 @@ function addButtonToTableRows() {
     let targetColIndex = null;
     const thead = form.querySelector("thead");
     if (thead) {
-      const ths = thead.querySelectorAll("th");
-      ths.forEach((th, idx) => {
-        if (th.getAttribute("data-id") === "10") {
-          targetColIndex = idx;
-        }
-      });
+      const ths = Array.from(thead.querySelectorAll("th"));
+      targetColIndex = ths.findIndex(th => th.getAttribute("data-id") === "10");
     }
 
     // Select all tbody elements within the form
@@ -33,7 +29,7 @@ function addButtonToTableRows() {
 
           // Add an event listener to the button
           button.addEventListener("click", () => {
-            if (targetColIndex) {
+            if (targetColIndex !== null) {
               const targetCellText = row.cells[targetColIndex]?.textContent.trim();
               if (targetCellText) {
                 row.remove();
@@ -52,8 +48,10 @@ function addButtonToTableRows() {
     restoreArchivedRows(targetColIndex);
   }
 }
-
-// Function to archive the row based on the target column's cell text
+    // If targetColIndex remains null (e.g., when the header isn’t found), calling restoreArchivedRows(null) will lead to invalid cell lookups. Add a guard to only call restoreArchivedRows when targetColIndex is non-null.
+    if (targetColIndex !== null) {
+      restoreArchivedRows(targetColIndex);
+    }
 function archiveRow(targetCellText) {
   // Get the current archived rows from storage
   browser.storage.local.get("archivedRows").then(result => {
@@ -69,9 +67,9 @@ function restoreArchivedRows(targetColIndex) {
   browser.storage.local.get("archivedRows").then(result => {
     const archivedRows = result.archivedRows || [];
     archivedRows.forEach(targetCellText => {
-      const rows = document.querySelectorAll("tbody tr");
+      const form = document.getElementById("tickets");
+      const rows = form ? form.querySelectorAll("tbody tr") : [];
       rows.forEach(row => {
-        const cellText = row.cells[targetColIndex]?.textContent.trim();
         if (cellText === targetCellText) {
           row.remove();
         }
