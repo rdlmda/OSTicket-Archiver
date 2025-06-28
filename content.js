@@ -5,6 +5,14 @@ function addButtonToTableRows() {
 
   // Check if the form exists
   if (form) {
+    // Find the column index with th[data-id="10"]
+    let targetColIndex = null;
+    const thead = form.querySelector("thead");
+    if (thead) {
+      const ths = Array.from(thead.querySelectorAll("th"));
+      targetColIndex = ths.findIndex(th => th.getAttribute("data-id") === "10");
+    }
+
     // Select all tbody elements within the form
     const tables = form.querySelectorAll("tbody");
 
@@ -15,16 +23,18 @@ function addButtonToTableRows() {
         if (!row.querySelector("button")) {
           // Create a new button with type "button"
           const button = document.createElement("button");
-          button.type = "button"; // Prevents the button from submitting the form
-          button.textContent = "Archive"; // Change button text to "Archive"
-          button.style.marginLeft = "10px"; // Add some space between the button and the row content
+          button.type = "button";
+          button.textContent = "Archive";
+          button.style.marginLeft = "10px";
 
           // Add an event listener to the button
           button.addEventListener("click", () => {
-            const thirdCellText = row.cells[2]?.textContent.trim(); // Get the text content of the third <td>
-            if (thirdCellText) {
-              row.remove(); // Remove the specific <tr> from the DOM
-              archiveRow(thirdCellText); // Archive the row based on the third cell's text
+            if (targetColIndex !== null) {
+              const targetCellText = row.cells[targetColIndex]?.textContent.trim();
+              if (targetCellText) {
+                row.remove();
+                archiveRow(targetCellText); // Archive the row based on the target column's cell text
+              }
             }
           });
 
@@ -34,32 +44,34 @@ function addButtonToTableRows() {
       });
     });
 
-    // Restore archived rows
-    restoreArchivedRows();
+    // If targetColIndex remains null (e.g., when the header isn’t found), calling restoreArchivedRows(null) will lead to invalid cell lookups. Add a guard to only call restoreArchivedRows when targetColIndex is non-null.
+    if (targetColIndex !== null) {
+      restoreArchivedRows(targetColIndex);
+    }
   }
 }
 
-// Function to archive the row based on the third cell's text
-function archiveRow(thirdCellText) {
+function archiveRow(targetCellText) {
   // Get the current archived rows from storage
   browser.storage.local.get("archivedRows").then(result => {
     const archivedRows = result.archivedRows || [];
-    archivedRows.push(thirdCellText); // Add the new archived row text
-    browser.storage.local.set({ archivedRows }); // Save the updated list
+    archivedRows.push(targetCellText);
+    browser.storage.local.set({ archivedRows });
   });
 }
 
 // Function to restore archived rows
-function restoreArchivedRows() {
+function restoreArchivedRows(targetColIndex) {
   // Get the archived rows from storage
   browser.storage.local.get("archivedRows").then(result => {
     const archivedRows = result.archivedRows || [];
-    archivedRows.forEach(thirdCellText => {
-      const rows = document.querySelectorAll("tbody tr");
+    archivedRows.forEach(targetCellText => {
+      const form = document.getElementById("tickets");
+      const rows = form ? form.querySelectorAll("tbody tr") : [];
       rows.forEach(row => {
-        const rowThirdCellText = row.cells[2]?.textContent.trim(); // Get the text content of the third <td>
-        if (rowThirdCellText === thirdCellText) {
-          row.remove(); // Remove the archived row from the DOM
+        const cellText = row.cells[targetColIndex]?.textContent.trim();
+        if (cellText === targetCellText) {
+          row.remove();
         }
       });
     });
