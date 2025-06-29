@@ -25,8 +25,11 @@ function addButtonToTableRows() {
             if (targetColIndex !== null) {
               const targetCellText = row.cells[targetColIndex]?.textContent.trim();
               if (targetCellText) {
-                archiveRow(targetCellText);
-                restoreArchivedRows(targetColIndex);
+                archiveRow(targetCellText)
+                  .then(() => { // wait for the archiving to finish before restoring
+                    return restoreArchivedRows(targetColIndex);
+                  })
+                  .catch(console.error);
               }
             }
           });
@@ -43,9 +46,10 @@ function addButtonToTableRows() {
   }
 }
 
-// Save list of archived rows to local storage
+// Save list of archived rows to local storage.
 function archiveRow(targetCellText) {
-  browser.storage.local.get("archivedRows").then(result => {
+  return browser.storage.local.get("archivedRows") // return the promise for addEventListener
+  .then(result => {
     const archivedRows = result.archivedRows || [];
     archivedRows.push(targetCellText);
     browser.storage.local.set({ archivedRows });
