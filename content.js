@@ -1,6 +1,7 @@
 let archiveCounter;
 let targetColIndex;
 let debugCounter = 0;
+const browser = window.browser || window.chrome; // cross-browser compatibility
 
 function addArchiveCounter() {
   const form = document.getElementById("tickets");
