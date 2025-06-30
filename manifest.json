@@ -5,7 +5,7 @@
   "description": "Hides OSTicket tickets from the panel until there's new activity.",
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": ["*://*/scp/*"],
       "js": ["content.js"]
     }
   ],
