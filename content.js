@@ -9,7 +9,7 @@ if (typeof browser === 'undefined') {
 }
 
 let archiveCounter;
-let targetColIndex;
+let tsIndex; // Colum Index for the "Last Updated" timestamp
 let debugCounter = 0;
 
 function addArchiveCounter() {
@@ -22,22 +22,22 @@ function addArchiveCounter() {
     archiveCounter.style.verticalAlign = "middle";
     updateArchiveCounter();
 
-    archiveCounter.addEventListener("click", showUnarchivePopup);
-    const newColLabel = form.querySelector("thead tr");
-    newColLabel.insertBefore(archiveCounter, newColLabel.lastChild);
+    archiveCounter.addEventListener("click", showRestorePopup);
+    const colHeader = form.querySelector("thead tr");
+    colHeader.insertBefore(archiveCounter, colHeader.lastChild);
   }
 }
 
 function updateArchiveCounter() {
-  browser.storage.local.get("archivedRows").then(result => {
-    const archivedRows = result.archivedRows || [];
-    archiveCounter.textContent = `📩 (${archivedRows.length})`;
+  browser.storage.local.get("archivedTickets").then(result => {
+    const archivedTickets = result.archivedTickets || [];
+    archiveCounter.textContent = `📩 (${archivedTickets.length})`;
   });
 }
 
-function showUnarchivePopup() {
+function showRestorePopup() {
   const popup = document.createElement("div");
-  popup.id = "unarchivePopup";
+  popup.id = "restorePopup";
   popup.style.position = "fixed";
   popup.style.top = "50%";
   popup.style.left = "50%";
@@ -52,29 +52,29 @@ function showUnarchivePopup() {
   popup.style.overflowY = "auto";
 
   const title = document.createElement("h2");
-  title.textContent = "Unarchive Rows";
+  title.textContent = "Restore tickets";
   popup.appendChild(title);
 
   const list = document.createElement("ul");
   list.style.listStyleType = "none";
   list.style.padding = "0";
 
-  browser.storage.local.get("archivedRows").then(result => {
-    const archivedRows = result.archivedRows || [];
-    archivedRows.forEach(targetCellText => {
+  browser.storage.local.get("archivedTickets").then(result => {
+    const archivedTickets = result.archivedTickets || [];
+    archivedTickets.forEach(timeStamp => {
       const listItem = document.createElement("li");
-      listItem.textContent = targetCellText;
+      listItem.textContent = timeStamp;
 
-      const unarchiveButton = document.createElement("button");
-      unarchiveButton.textContent = "Unarchive";
-      unarchiveButton.style.marginLeft = "10px";
-      unarchiveButton.addEventListener("click", () => {
-        unarchiveRow(targetCellText);
+      const restoreButton = document.createElement("button");
+      restoreButton.textContent = "Restore";
+      restoreButton.style.marginLeft = "10px";
+      restoreButton.addEventListener("click", () => {
+        restoreTicket(timeStamp);
         listItem.remove();
         updateArchiveCounter();
       });
 
-      listItem.appendChild(unarchiveButton);
+      listItem.appendChild(restoreButton);
       list.appendChild(listItem);
     });
   });
@@ -91,17 +91,17 @@ function showUnarchivePopup() {
   popup.appendChild(closeButton);
 }
 
-function unarchiveRow(targetCellText) {
-  return browser.storage.local.get("archivedRows").then(result => {
-    const archivedRows = result.archivedRows || [];
-    const updatedRows = archivedRows.filter(row => row !== targetCellText);
+function restoreTicket(timeStamp) {
+  return browser.storage.local.get("archivedTickets").then(result => {
+    const archivedTickets = result.archivedTickets || [];
+    const updatedTickets = archivedTickets.filter(entry => entry !== timeStamp); // Builds a new list without the current timeStamp
 
-    return browser.storage.local.set({ archivedRows: updatedRows }).then(() => {
+    return browser.storage.local.set({ archivedTickets: updatedTickets }).then(() => {
       const form = document.getElementById("tickets");
       const rows = form ? form.querySelectorAll("tbody tr") : [];
       rows.forEach(row => {
-        const cellText = row.cells[targetColIndex]?.textContent.trim();
-        if (cellText === targetCellText) {
+        const rowTimeStamp = row.cells[tsIndex]?.textContent.trim();
+        if (rowTimeStamp === timeStamp) {
           row.removeAttribute('hidden');
         }
       });
@@ -109,16 +109,16 @@ function unarchiveRow(targetCellText) {
   });
 }
 
-function addButtonToTableRows() {
+function addArchiveButtons() {
   const form = document.getElementById("tickets");
 
   if (form) {
     // The "Last Updated" column can be at any position, but its data-id is always 10
-    targetColIndex = null;
+    tsIndex = null;
     const thead = form.querySelector("thead");
     if (thead) {
       const ths = Array.from(thead.querySelectorAll("th"));
-      targetColIndex = ths.findIndex(th => th.getAttribute("data-id") === "10");
+      tsIndex = ths.findIndex(th => th.getAttribute("data-id") === "10");
     }
 
     const tables = form.querySelectorAll("tbody");
@@ -137,13 +137,13 @@ function addButtonToTableRows() {
           button.style.margin = "5px";
 
           button.addEventListener("click", () => {
-            if (targetColIndex !== null) {
-              const targetCellText = row.cells[targetColIndex]?.textContent.trim();
-              if (targetCellText) {
-                archiveRow(targetCellText)
+            if (tsIndex !== null) {
+              const timeStamp = row.cells[tsIndex]?.textContent.trim();
+              if (timeStamp) {
+                archiveTicket(timeStamp)
                   .then(() => {
                     updateArchiveCounter();
-                    return restoreArchivedRows(targetColIndex);
+                    return loadArchivedTickets(tsIndex);
                   })
                   .catch(console.error);
               }
@@ -156,33 +156,33 @@ function addButtonToTableRows() {
       });
     });
 
-    // If targetColIndex remains null (e.g., when the header isn’t found), calling restoreArchivedRows(null) will lead to invalid cell lookups. Add a guard to only call restoreArchivedRows when targetColIndex is non-null.
-    if (targetColIndex !== null) {
-      restoreArchivedRows(targetColIndex);
+    // If tsIndex remains null (e.g., when the header isn’t found), calling loadArchivedTickets(null) will lead to invalid cell lookups. Add a guard to only call loadArchivedTickets when tsIndex is non-null.
+    if (tsIndex !== null) {
+      loadArchivedTickets(tsIndex);
     }
   }
 }
 
 // Save list of archived rows to local storage.
-function archiveRow(targetCellText) {
-  return browser.storage.local.get("archivedRows") // return the promise for addEventListener
+function archiveTicket(timeStamp) {
+  return browser.storage.local.get("archivedTickets") // return the promise for addEventListener
   .then(result => {
-    const archivedRows = result.archivedRows || [];
-    archivedRows.push(targetCellText);
-    return browser.storage.local.set({ archivedRows });
+    const archivedTickets = result.archivedTickets || [];
+    archivedTickets.push(timeStamp);
+    return browser.storage.local.set({ archivedTickets });
   });
 }
 
 // Retrieve (and parse) list of archived rows from local storage
-function restoreArchivedRows(targetColIndex) {
-  browser.storage.local.get("archivedRows").then(result => {
-    const archivedRows = result.archivedRows || [];
-    archivedRows.forEach(targetCellText => {
+function loadArchivedTickets(tsIndex) {
+  browser.storage.local.get("archivedTickets").then(result => {
+    const archivedTickets = result.archivedTickets || [];
+    archivedTickets.forEach(timeStamp => {
       const form = document.getElementById("tickets");
       const rows = form ? form.querySelectorAll("tbody tr") : [];
       rows.forEach(row => {
-        const cellText = row.cells[targetColIndex]?.textContent.trim();
-        if (cellText === targetCellText) {
+        const rowTimeStamp = row.cells[tsIndex]?.textContent.trim();
+        if (rowTimeStamp === timeStamp) {
           row.setAttribute('hidden', true);
         }
       });
@@ -197,7 +197,7 @@ function observeDOMChanges() {
     for (const mutation of mutationsList) {
       if (mutation.type === 'childList' && mutation.addedNodes.length > 0) { // only if new nodes are added
         addArchiveCounter();
-        addButtonToTableRows();
+        addArchiveButtons();
         break; // Exit after handling the first mutation
       }
     }
@@ -215,6 +215,6 @@ function shouldRunAddon() {
 
 if (shouldRunAddon()) {
   addArchiveCounter();
-  addButtonToTableRows();
+  addArchiveButtons();
   observeDOMChanges();
 }
