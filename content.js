@@ -1,7 +1,16 @@
+// FireFox & Chrome compatibility
+if (typeof browser === 'undefined') {
+    // Check if we're in a Firefox environment
+    if (typeof window.browser !== 'undefined') {
+        browser = window.browser; // Firefox
+    } else {
+        browser = window.chrome; // Chrome
+    }
+}
+
 let archiveCounter;
 let targetColIndex;
 let debugCounter = 0;
-const browser = window.browser || window.chrome; // cross-browser compatibility
 
 function addArchiveCounter() {
   const form = document.getElementById("tickets");
