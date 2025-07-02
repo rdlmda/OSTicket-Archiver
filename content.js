@@ -106,6 +106,8 @@ function restoreTicket(timeStamp) {
         }
       });
     });
+  }).then(() => {
+    updateArchiveCounter();
   });
 }
 
