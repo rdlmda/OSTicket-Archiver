@@ -8,9 +8,19 @@ if (typeof browser === 'undefined') {
     }
 }
 
+// The columns can be at any position, but its data-ids are fixed. 
+// We use these vars to detect their position on the table.
+let tsIndex; // "Last Updated" timestamp, data-id = 10.
+let tkIndex; // "Ticket #", data-id = 1.
+
 let archiveCounter;
-let tsIndex; // Colum Index for the "Last Updated" timestamp
 let debugCounter = 0;
+
+// Helper to compare arrays, as a direct array comparision will always return 
+// 'true' -- since JavaScript compares objects by reference, not value.
+function arraysEqual(arr1, arr2) {
+    return arr1.length === arr2.length && arr1.every((value, index) => value === arr2[index]);
+}
 
 function addArchiveCounter() {
   const form = document.getElementById("tickets");
@@ -61,17 +71,17 @@ function showRestorePopup() {
 
   browser.storage.local.get("archivedTickets").then(result => {
     const archivedTickets = result.archivedTickets || [];
-    archivedTickets.forEach(timeStamp => {
+    archivedTickets.forEach(archivedTicket => {
+      const [idNum, timeStamp] = archivedTicket;
       const listItem = document.createElement("li");
-      listItem.textContent = timeStamp;
+      listItem.textContent = idNum + ' - ' + timeStamp;
 
       const restoreButton = document.createElement("button");
       restoreButton.textContent = "Restore";
       restoreButton.style.marginLeft = "10px";
       restoreButton.addEventListener("click", () => {
-        restoreTicket(timeStamp);
+        restoreTicket([idNum,timeStamp]);
         listItem.remove();
-        updateArchiveCounter();
       });
 
       listItem.appendChild(restoreButton);
@@ -91,17 +101,18 @@ function showRestorePopup() {
   popup.appendChild(closeButton);
 }
 
-function restoreTicket(timeStamp) {
+function restoreTicket([idNum,timeStamp]) {
   return browser.storage.local.get("archivedTickets").then(result => {
     const archivedTickets = result.archivedTickets || [];
-    const updatedTickets = archivedTickets.filter(entry => entry !== timeStamp); // Builds a new list without the current timeStamp
+    const updatedTickets = archivedTickets.filter(entry => !arraysEqual(entry, [idNum,timeStamp])); // Builds a new list without the ticket being restored
 
     return browser.storage.local.set({ archivedTickets: updatedTickets }).then(() => {
       const form = document.getElementById("tickets");
       const rows = form ? form.querySelectorAll("tbody tr") : [];
       rows.forEach(row => {
+        const rowIDNum = row.cells[tkIndex]?.textContent.trim();
         const rowTimeStamp = row.cells[tsIndex]?.textContent.trim();
-        if (rowTimeStamp === timeStamp) {
+        if (rowIDNum === idNum && rowTimeStamp === timeStamp) {
           row.removeAttribute('hidden');
         }
       });
@@ -115,11 +126,11 @@ function addArchiveButtons() {
   const form = document.getElementById("tickets");
 
   if (form) {
-    // The "Last Updated" column can be at any position, but its data-id is always 10
     tsIndex = null;
     const thead = form.querySelector("thead");
     if (thead) {
       const ths = Array.from(thead.querySelectorAll("th"));
+      tkIndex = ths.findIndex(th => th.getAttribute("data-id") === "1");
       tsIndex = ths.findIndex(th => th.getAttribute("data-id") === "10");
     }
 
@@ -139,10 +150,11 @@ function addArchiveButtons() {
           button.style.margin = "5px";
 
           button.addEventListener("click", () => {
-            if (tsIndex !== null) {
+            if (tkIndex !== null && tsIndex !== null) {
+              const idNum = row.cells[tkIndex]?.textContent.trim();
               const timeStamp = row.cells[tsIndex]?.textContent.trim();
-              if (timeStamp) {
-                archiveTicket(timeStamp)
+              if (idNum && timeStamp) {
+                archiveTicket(idNum, timeStamp)
                   .then(() => {
                     updateArchiveCounter();
                     return loadArchivedTickets(tsIndex);
@@ -160,31 +172,33 @@ function addArchiveButtons() {
 
     // If tsIndex remains null (e.g., when the header isn’t found), calling loadArchivedTickets(null) will lead to invalid cell lookups. Add a guard to only call loadArchivedTickets when tsIndex is non-null.
     if (tsIndex !== null) {
-      loadArchivedTickets(tsIndex);
+      loadArchivedTickets();
     }
   }
 }
 
 // Save list of archived rows to local storage.
-function archiveTicket(timeStamp) {
+function archiveTicket(idNum, timeStamp) {
   return browser.storage.local.get("archivedTickets") // return the promise for addEventListener
   .then(result => {
     const archivedTickets = result.archivedTickets || [];
-    archivedTickets.push(timeStamp);
+    archivedTickets.push([idNum, timeStamp]);
     return browser.storage.local.set({ archivedTickets });
   });
 }
 
 // Retrieve (and parse) list of archived rows from local storage
-function loadArchivedTickets(tsIndex) {
+function loadArchivedTickets() {
   browser.storage.local.get("archivedTickets").then(result => {
     const archivedTickets = result.archivedTickets || [];
-    archivedTickets.forEach(timeStamp => {
+    archivedTickets.forEach( archivedTicket => {
+      const [idNum, timeStamp] = archivedTicket;
       const form = document.getElementById("tickets");
       const rows = form ? form.querySelectorAll("tbody tr") : [];
       rows.forEach(row => {
+        const rowTicketID = row.cells[tkIndex]?.textContent.trim();
         const rowTimeStamp = row.cells[tsIndex]?.textContent.trim();
-        if (rowTimeStamp === timeStamp) {
+        if (rowTicketID === idNum && rowTimeStamp === timeStamp) {
           row.setAttribute('hidden', true);
         }
       });
