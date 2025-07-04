@@ -10,16 +10,68 @@ if (typeof browser === 'undefined') {
 
 // The columns can be at any position, but its data-ids are fixed. 
 // We use these vars to detect their position on the table.
-let tsIndex; // "Last Updated" timestamp, data-id = 10.
-let tkIndex; // "Ticket #", data-id = 1.
+let idIndex; // "Ticket #", data-id = 1.
+let dcIndex; // "Date Created", data-id = 2.
+let luIndex; // "Last Updated", data-id = 10.
+let lmIndex; // "Last Message", data-id = 12.
+let lrIndex; // "Last Response", data-id = 13.
 
 let archiveCounter;
-let debugCounter = 0;
 
 // Helper to compare arrays, as a direct array comparision will always return 
 // 'true' -- since JavaScript compares objects by reference, not value.
 function arraysEqual(arr1, arr2) {
     return arr1.length === arr2.length && arr1.every((value, index) => value === arr2[index]);
+}
+
+// Helper function
+function parseDate(strDate) {
+
+  if (is8601(strDate)) {
+    return new Date(strDate);
+  }
+
+  const parts = strDate.split((/[/ :]/)); // splits on " ", "/", ":"
+
+  // Extract day, month, year, hour, minute
+  // Expects format as "dd/mm/yy hh:mm"
+  const day = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed in JavaScript
+  const year = parseInt("20" + parts[2], 10);
+  const hour = parseInt(parts[3], 10);
+  const minute = parseInt(parts[4], 10);
+
+  return new Date(year, month, day, hour, minute);
+}
+
+// Helper function to check if a string is an ISO-8601 formatted date 
+function is8601(strDate) {
+  // Regular expression for ISO8601 format
+  const iso8601Regex = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2}(?:\.\d+)?)(Z|[+-]\d{2}:\d{2})?$/;
+  
+  // First, check regex match
+  if (!iso8601Regex.test(strDate)) {
+    return false;
+  }
+
+  // Additional validation using Date parsing
+  try {
+    const date = new Date(strDate);
+    return !isNaN(date.getTime());
+  } catch (e) {
+    return false;
+  }
+}
+
+// Helper function for getting the most recent date in an array
+function mostRecentDate(dates) {
+  const validDates = dates.filter(date => date.getTime() !== 0);
+    
+    if (validDates.length === 0) return null; // Return null if no valid dates are found
+
+    return validDates.reduce((mostRecent, currentDate) => {
+        return currentDate > mostRecent ? currentDate : mostRecent;
+    });
 }
 
 function addArchiveCounter() {
@@ -110,8 +162,8 @@ function restoreTicket([idNum,timeStamp]) {
       const form = document.getElementById("tickets");
       const rows = form ? form.querySelectorAll("tbody tr") : [];
       rows.forEach(row => {
-        const rowIDNum = row.cells[tkIndex]?.textContent.trim();
-        const rowTimeStamp = row.cells[tsIndex]?.textContent.trim();
+        const rowIDNum = row.cells[idIndex]?.textContent.trim();
+        const rowTimeStamp = row.cells[luIndex]?.textContent.trim();
         if (rowIDNum === idNum && rowTimeStamp === timeStamp) {
           row.removeAttribute('hidden');
         }
@@ -126,12 +178,12 @@ function addArchiveButtons() {
   const form = document.getElementById("tickets");
 
   if (form) {
-    tsIndex = null;
+    luIndex = null;
     const thead = form.querySelector("thead");
     if (thead) {
       const ths = Array.from(thead.querySelectorAll("th"));
-      tkIndex = ths.findIndex(th => th.getAttribute("data-id") === "1");
-      tsIndex = ths.findIndex(th => th.getAttribute("data-id") === "10");
+      idIndex = ths.findIndex(th => th.getAttribute("data-id") === "1");
+      luIndex = ths.findIndex(th => th.getAttribute("data-id") === "10");
     }
 
     const tables = form.querySelectorAll("tbody");
@@ -150,14 +202,14 @@ function addArchiveButtons() {
           button.style.margin = "5px";
 
           button.addEventListener("click", () => {
-            if (tkIndex !== null && tsIndex !== null) {
-              const idNum = row.cells[tkIndex]?.textContent.trim();
-              const timeStamp = row.cells[tsIndex]?.textContent.trim();
+            if (idIndex !== null && luIndex !== null) {
+              const idNum = row.cells[idIndex]?.textContent.trim();
+              const timeStamp = row.cells[luIndex]?.textContent.trim();
               if (idNum && timeStamp) {
                 archiveTicket(idNum, timeStamp)
                   .then(() => {
                     updateArchiveCounter();
-                    return loadArchivedTickets(tsIndex);
+                    return loadArchivedTickets(luIndex);
                   })
                   .catch(console.error);
               }
@@ -170,8 +222,8 @@ function addArchiveButtons() {
       });
     });
 
-    // If tsIndex remains null (e.g., when the header isn’t found), calling loadArchivedTickets(null) will lead to invalid cell lookups. Add a guard to only call loadArchivedTickets when tsIndex is non-null.
-    if (tsIndex !== null) {
+    // If luIndex remains null (e.g., when the header isn’t found), calling loadArchivedTickets(null) will lead to invalid cell lookups. Add a guard to only call loadArchivedTickets when luIndex is non-null.
+    if (luIndex !== null) {
       loadArchivedTickets();
     }
   }
@@ -196,8 +248,8 @@ function loadArchivedTickets() {
       const form = document.getElementById("tickets");
       const rows = form ? form.querySelectorAll("tbody tr") : [];
       rows.forEach(row => {
-        const rowTicketID = row.cells[tkIndex]?.textContent.trim();
-        const rowTimeStamp = row.cells[tsIndex]?.textContent.trim();
+        const rowTicketID = row.cells[idIndex]?.textContent.trim();
+        const rowTimeStamp = row.cells[luIndex]?.textContent.trim();
         if (rowTicketID === idNum && rowTimeStamp === timeStamp) {
           row.setAttribute('hidden', true);
         }
