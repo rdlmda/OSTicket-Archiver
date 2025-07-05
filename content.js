@@ -10,13 +10,45 @@ if (typeof browser === 'undefined') {
 
 // The columns can be at any position, but its data-ids are fixed. 
 // We use these vars to detect their position on the table.
-let idIndex; // "Ticket #", data-id = 1.
-let dcIndex; // "Date Created", data-id = 2.
-let luIndex; // "Last Updated", data-id = 10.
-let lmIndex; // "Last Message", data-id = 12.
-let lrIndex; // "Last Response", data-id = 13.
+let idIndex = null; // "Ticket #", data-id = 1.
+let dcIndex = null; // "Date Created", data-id = 2.
+let luIndex = null; // "Last Updated", data-id = 10.
+let lmIndex = null; // "Last Message", data-id = 12.
+let lrIndex = null; // "Last Response", data-id = 13.
+
+// DOM Elements to be found
+let ticketForm = null;
+let colHeaders = null;
+let dataRows = null;
 
 let archiveCounter;
+
+function init() {
+  ticketForm = document.getElementById("tickets");
+  colHeaders = Array.from(ticketForm ? ticketForm.querySelectorAll("thead th") : []);
+  if (colHeaders.length > 0) {
+    idIndex = colHeaders.findIndex(th => th.getAttribute("data-id") === "1");
+    dcIndex = colHeaders.findIndex(th => th.getAttribute("data-id") === "2");
+    luIndex = colHeaders.findIndex(th => th.getAttribute("data-id") === "10");
+    lmIndex = colHeaders.findIndex(th => th.getAttribute("data-id") === "12");
+    lrIndex = colHeaders.findIndex(th => th.getAttribute("data-id") === "13");
+  }
+
+  if (
+    [idIndex, dcIndex, luIndex, lmIndex, lrIndex].some(x => x == null) &&
+    [idIndex, dcIndex, luIndex, lmIndex, lrIndex].some(x => x == -1)
+  ) {
+    console.log("Required columns haven't been found");
+    return;
+  }
+
+  dataRows = ticketForm ? ticketForm.querySelectorAll("tbody tr") : [];
+
+  mergeDates();
+  addArchiveCounter();
+  addArchiveButtons();
+  loadArchivedTickets();
+}
 
 // Helper to compare arrays, as a direct array comparision will always return 
 // 'true' -- since JavaScript compares objects by reference, not value.
@@ -74,9 +106,12 @@ function mostRecentDate(dates) {
     });
 }
 
+function mergeDates() {
+    
+}
+
 function addArchiveCounter() {
-  const form = document.getElementById("tickets");
-  if (form && !document.getElementById("archiveCounter") ) {
+  if (ticketForm && !document.getElementById("archiveCounter") ) {
     archiveCounter = document.createElement("th");
     archiveCounter.id = "archiveCounter";
     archiveCounter.style.cursor = "pointer";
@@ -85,8 +120,7 @@ function addArchiveCounter() {
     updateArchiveCounter();
 
     archiveCounter.addEventListener("click", showRestorePopup);
-    const colHeader = form.querySelector("thead tr");
-    colHeader.insertBefore(archiveCounter, colHeader.lastChild);
+    colHeaders[0].parentNode.appendChild(archiveCounter);
   }
 }
 
@@ -159,9 +193,7 @@ function restoreTicket([idNum,timeStamp]) {
     const updatedTickets = archivedTickets.filter(entry => !arraysEqual(entry, [idNum,timeStamp])); // Builds a new list without the ticket being restored
 
     return browser.storage.local.set({ archivedTickets: updatedTickets }).then(() => {
-      const form = document.getElementById("tickets");
-      const rows = form ? form.querySelectorAll("tbody tr") : [];
-      rows.forEach(row => {
+      dataRows.forEach(row => {
         const rowIDNum = row.cells[idIndex]?.textContent.trim();
         const rowTimeStamp = row.cells[luIndex]?.textContent.trim();
         if (rowIDNum === idNum && rowTimeStamp === timeStamp) {
@@ -175,57 +207,38 @@ function restoreTicket([idNum,timeStamp]) {
 }
 
 function addArchiveButtons() {
-  const form = document.getElementById("tickets");
+  if (ticketForm) {
 
-  if (form) {
-    luIndex = null;
-    const thead = form.querySelector("thead");
-    if (thead) {
-      const ths = Array.from(thead.querySelectorAll("th"));
-      idIndex = ths.findIndex(th => th.getAttribute("data-id") === "1");
-      luIndex = ths.findIndex(th => th.getAttribute("data-id") === "10");
-    }
+    dataRows.forEach(row => {
+      if (!row.querySelector("button")) { // Avoid duplicates
+        const cell = document.createElement("td");
+        cell.style.textAlign = "center";
+        cell.style.verticalAlign = "middle";
 
-    const tables = form.querySelectorAll("tbody");
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = "Archive";
+        button.style.margin = "5px";
 
-    tables.forEach(tbody => {
-      const rows = tbody.querySelectorAll("tr");
-      rows.forEach(row => {
-        if (!row.querySelector("button")) { // Avoid duplicates
-          const cell = document.createElement("td");
-          cell.style.textAlign = "center";
-          cell.style.verticalAlign = "middle";
-
-          const button = document.createElement("button");
-          button.type = "button";
-          button.textContent = "Archive";
-          button.style.margin = "5px";
-
-          button.addEventListener("click", () => {
-            if (idIndex !== null && luIndex !== null) {
-              const idNum = row.cells[idIndex]?.textContent.trim();
-              const timeStamp = row.cells[luIndex]?.textContent.trim();
-              if (idNum && timeStamp) {
-                archiveTicket(idNum, timeStamp)
-                  .then(() => {
-                    updateArchiveCounter();
-                    return loadArchivedTickets(luIndex);
-                  })
-                  .catch(console.error);
-              }
+        button.addEventListener("click", () => {
+          if (idIndex !== null && luIndex !== null) {
+            const idNum = row.cells[idIndex]?.textContent.trim();
+            const timeStamp = row.cells[luIndex]?.textContent.trim();
+            if (idNum && timeStamp) {
+              archiveTicket(idNum, timeStamp)
+                .then(() => {
+                  updateArchiveCounter();
+                  return loadArchivedTickets(luIndex);
+                })
+                .catch(console.error);
             }
-          });
+          }
+        });
 
-          row.appendChild(cell);
-          cell.appendChild(button);
-        }
-      });
+        row.appendChild(cell);
+        cell.appendChild(button);
+      }
     });
-
-    // If luIndex remains null (e.g., when the header isn’t found), calling loadArchivedTickets(null) will lead to invalid cell lookups. Add a guard to only call loadArchivedTickets when luIndex is non-null.
-    if (luIndex !== null) {
-      loadArchivedTickets();
-    }
   }
 }
 
@@ -245,9 +258,7 @@ function loadArchivedTickets() {
     const archivedTickets = result.archivedTickets || [];
     archivedTickets.forEach( archivedTicket => {
       const [idNum, timeStamp] = archivedTicket;
-      const form = document.getElementById("tickets");
-      const rows = form ? form.querySelectorAll("tbody tr") : [];
-      rows.forEach(row => {
+      dataRows.forEach(row => {
         const rowTicketID = row.cells[idIndex]?.textContent.trim();
         const rowTimeStamp = row.cells[luIndex]?.textContent.trim();
         if (rowTicketID === idNum && rowTimeStamp === timeStamp) {
@@ -264,8 +275,7 @@ function observeDOMChanges() {
   const observer = new MutationObserver((mutationsList) => {
     for (const mutation of mutationsList) {
       if (mutation.type === 'childList' && mutation.addedNodes.length > 0) { // only if new nodes are added
-        addArchiveCounter();
-        addArchiveButtons();
+        init();
         break; // Exit after handling the first mutation
       }
     }
@@ -282,7 +292,6 @@ function shouldRunAddon() {
 }
 
 if (shouldRunAddon()) {
-  addArchiveCounter();
-  addArchiveButtons();
+  init();
   observeDOMChanges();
 }
