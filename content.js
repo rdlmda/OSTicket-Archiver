@@ -72,8 +72,11 @@ function arraysEqual(arr1, arr2) {
 // Helper function
 function parseDate(strDate) {
 
+  if (strDate.length == 0)
+    return 0;
+
   if (is8601(strDate)) {
-    return new Date(strDate);
+    return new Date(strDate).getTime();
   }
 
   const parts = strDate.split((/[/ :]/)); // splits on " ", "/", ":"
@@ -86,7 +89,7 @@ function parseDate(strDate) {
   const hour = parseInt(parts[3], 10);
   const minute = parseInt(parts[4], 10);
 
-  return new Date(year, month, day, hour, minute);
+  return new Date(year, month, day, hour, minute).getTime();
 }
 
 // Helper function to check if a string is an ISO-8601 formatted date 
@@ -176,7 +179,7 @@ function restoreTicket([idNum,timeStamp]) {
     return browser.storage.local.set({ archivedTickets: updatedTickets }).then(() => {
       dataRows.forEach(row => {
         const rowIDNum = row.cells[idIndex]?.textContent.trim();
-        const rowTimeStamp = row.cells[luIndex]?.textContent.trim();
+        const rowTimeStamp = parseDate(row.cells[luIndex]?.textContent.trim());
         if (rowIDNum === idNum && rowTimeStamp === timeStamp) {
           row.removeAttribute('hidden');
         }
@@ -207,12 +210,12 @@ function addArchiveButton(row) {
     archiveButton.addEventListener("click", () => {
       if (idIndex !== null && luIndex !== null) {
         const idNum = row.cells[idIndex]?.textContent.trim();
-        const timeStamp = row.cells[luIndex]?.textContent.trim();
+        const timeStamp = parseDate(row.cells[luIndex]?.textContent.trim());
         if (idNum && timeStamp) {
           archiveTicket(idNum, timeStamp)
             .then(() => {
               updateArchiveCounter();
-              return loadArchivedTickets(luIndex);
+              return loadArchivedTickets();
             })
             .catch(console.error);
         }
@@ -234,7 +237,7 @@ function addRestoreButton(row) {
 
     restoreButton.addEventListener("click", () => {
       const idNum = row.cells[idIndex]?.textContent.trim();
-      const timeStamp = row.cells[luIndex]?.textContent.trim();
+      const timeStamp = parseDate(row.cells[luIndex]?.textContent.trim());
       restoreTicket([idNum,timeStamp]);
       row.querySelector(".button-container button")?.remove();
       addArchiveButton(row);
@@ -262,7 +265,7 @@ function loadArchivedTickets() {
       const [idNum, timeStamp] = archivedTicket;
       dataRows.forEach(row => {
         const rowTicketID = row.cells[idIndex]?.textContent.trim();
-        const rowTimeStamp = row.cells[luIndex]?.textContent.trim();
+        const rowTimeStamp = parseDate(row.cells[luIndex]?.textContent.trim());
         if (rowTicketID === idNum && rowTimeStamp === timeStamp) {
           row.setAttribute('hidden', true);
         }
