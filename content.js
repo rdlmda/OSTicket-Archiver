@@ -138,11 +138,11 @@ function addArchiveCounter() {
 
 function updateArchiveCounter() {
   browser.storage.local.get("archivedTickets").then(result => {
-    const archivedTickets = result.archivedTickets || [];
     if (!isShowingHiddenRows) {
-      archiveCounter.textContent = `📥 (${archivedTickets.length})`;
+      const archivedTickets = Array.from(ticketForm.querySelectorAll("tr"))?.filter(tr => tr.getAttribute("hidden") == "true").length || 0;
+      archiveCounter.textContent = `📥 (${archivedTickets})`;
     } else {
-      archiveCounter.textContent = `👁️ (${archivedTickets.length})`;
+      archiveCounter.textContent = `👁️`;
     }
   });
 }
