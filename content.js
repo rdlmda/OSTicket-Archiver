@@ -21,7 +21,9 @@ let ticketForm = null;
 let colHeaders = null;
 let dataRows = null;
 
-let archiveCounter;
+// Flags
+let isShowingHiddenRows = false;
+let archiveCounter = null;
 
 function init() {
   ticketForm = document.getElementById("tickets");
@@ -43,6 +45,16 @@ function init() {
   }
 
   dataRows = ticketForm ? ticketForm.querySelectorAll("tbody tr") : [];
+
+  dataRows.forEach(row => {
+    if (row.querySelectorAll(".button-container").length == 0 ) {
+      const buttonContainer = document.createElement("td");
+      buttonContainer.className = "button-container";
+      buttonContainer.style.textAlign = "center";
+      buttonContainer.style.verticalAlign = "middle";
+      row.appendChild(buttonContainer);
+    }
+  })
 
   mergeDates();
   addArchiveCounter();
@@ -119,7 +131,7 @@ function addArchiveCounter() {
     archiveCounter.style.verticalAlign = "middle";
     updateArchiveCounter();
 
-    archiveCounter.addEventListener("click", showRestorePopup);
+    archiveCounter.addEventListener("click", toggleHiddenRows);
     colHeaders[0].parentNode.appendChild(archiveCounter);
   }
 }
@@ -127,64 +139,32 @@ function addArchiveCounter() {
 function updateArchiveCounter() {
   browser.storage.local.get("archivedTickets").then(result => {
     const archivedTickets = result.archivedTickets || [];
-    archiveCounter.textContent = `📩 (${archivedTickets.length})`;
+    if (!isShowingHiddenRows) {
+      archiveCounter.textContent = `📥 (${archivedTickets.length})`;
+    } else {
+      archiveCounter.textContent = `👁️ (${archivedTickets.length})`;
+    }
   });
 }
 
-function showRestorePopup() {
-  const popup = document.createElement("div");
-  popup.id = "restorePopup";
-  popup.style.position = "fixed";
-  popup.style.top = "50%";
-  popup.style.left = "50%";
-  popup.style.transform = "translate(-50%, -50%)";
-  popup.style.backgroundColor = "white";
-  popup.style.border = "1px solid #ccc";
-  popup.style.padding = "20px";
-  popup.style.zIndex = "1000";
-  popup.style.boxShadow = "0 0 10px rgba(0,0,0,0.5)";
-  popup.style.maxWidth = "400px";
-  popup.style.maxHeight = "300px";
-  popup.style.overflowY = "auto";
+function toggleHiddenRows() {
+  if (isShowingHiddenRows) {
+    loadArchivedTickets();
+    isShowingHiddenRows = !isShowingHiddenRows;
+    updateArchiveCounter();
+    return;
+  }
 
-  const title = document.createElement("h2");
-  title.textContent = "Restore tickets";
-  popup.appendChild(title);
-
-  const list = document.createElement("ul");
-  list.style.listStyleType = "none";
-  list.style.padding = "0";
-
-  browser.storage.local.get("archivedTickets").then(result => {
-    const archivedTickets = result.archivedTickets || [];
-    archivedTickets.forEach(archivedTicket => {
-      const [idNum, timeStamp] = archivedTicket;
-      const listItem = document.createElement("li");
-      listItem.textContent = idNum + ' - ' + timeStamp;
-
-      const restoreButton = document.createElement("button");
-      restoreButton.textContent = "Restore";
-      restoreButton.style.marginLeft = "10px";
-      restoreButton.addEventListener("click", () => {
-        restoreTicket([idNum,timeStamp]);
-        listItem.remove();
-      });
-
-      listItem.appendChild(restoreButton);
-      list.appendChild(listItem);
-    });
+  dataRows.forEach(row => {
+    if (row.getAttribute('hidden')) {
+      row.removeAttribute('hidden')
+      row.querySelector(".button-container button")?.remove();
+      addRestoreButton(row);
+    }
   });
 
-  popup.appendChild(list);
-  document.body.appendChild(popup);
-
-  const closeButton = document.createElement("button");
-  closeButton.textContent = "Close";
-  closeButton.style.marginTop = "10px";
-  closeButton.addEventListener("click", () => {
-    document.body.removeChild(popup);
-  });
-  popup.appendChild(closeButton);
+  isShowingHiddenRows = !isShowingHiddenRows;
+  updateArchiveCounter();
 }
 
 function restoreTicket([idNum,timeStamp]) {
@@ -210,35 +190,56 @@ function addArchiveButtons() {
   if (ticketForm) {
 
     dataRows.forEach(row => {
-      if (!row.querySelector("button")) { // Avoid duplicates
-        const cell = document.createElement("td");
-        cell.style.textAlign = "center";
-        cell.style.verticalAlign = "middle";
+      addArchiveButton(row);
+    });
+  }
+}
 
-        const button = document.createElement("button");
-        button.type = "button";
-        button.textContent = "Archive";
-        button.style.margin = "5px";
+function addArchiveButton(row) {
+  target = row.querySelector(".button-container")
+  if (target != null && target.textContent != "📥") {
+    const archiveButton = document.createElement("button");
+    archiveButton.type = "button";
+    archiveButton.textContent = "📥";
+    archiveButton.style.margin = "5px";
 
-        button.addEventListener("click", () => {
-          if (idIndex !== null && luIndex !== null) {
-            const idNum = row.cells[idIndex]?.textContent.trim();
-            const timeStamp = row.cells[luIndex]?.textContent.trim();
-            if (idNum && timeStamp) {
-              archiveTicket(idNum, timeStamp)
-                .then(() => {
-                  updateArchiveCounter();
-                  return loadArchivedTickets(luIndex);
-                })
-                .catch(console.error);
-            }
-          }
-        });
-
-        row.appendChild(cell);
-        cell.appendChild(button);
+    archiveButton.addEventListener("click", () => {
+      if (idIndex !== null && luIndex !== null) {
+        const idNum = row.cells[idIndex]?.textContent.trim();
+        const timeStamp = row.cells[luIndex]?.textContent.trim();
+        if (idNum && timeStamp) {
+          archiveTicket(idNum, timeStamp)
+            .then(() => {
+              updateArchiveCounter();
+              return loadArchivedTickets(luIndex);
+            })
+            .catch(console.error);
+        }
       }
     });
+
+    target.appendChild(archiveButton);
+  }
+}
+
+function addRestoreButton(row) {
+  target = row.querySelector(".button-container")
+  if (target != null && target.textContent != "📤") {
+    const restoreButton = document.createElement("button");
+    restoreButton.type = "button";
+    restoreButton.textContent = "📤";
+    restoreButton.style.margin = "5px";
+    restoreButton.style.backgroundColor = 'lightcoral';
+
+    restoreButton.addEventListener("click", () => {
+      const idNum = row.cells[idIndex]?.textContent.trim();
+      const timeStamp = row.cells[luIndex]?.textContent.trim();
+      restoreTicket([idNum,timeStamp]);
+      row.querySelector(".button-container button")?.remove();
+      addArchiveButton(row);
+    });
+    
+    target.appendChild(restoreButton);
   }
 }
 
