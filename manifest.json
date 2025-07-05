@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "OSTicket Archiver",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Hides OSTicket tickets from the panel until there's new activity.",
   "content_scripts": [
     {
