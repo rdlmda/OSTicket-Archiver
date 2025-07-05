@@ -274,7 +274,11 @@ function loadArchivedTickets() {
 function observeDOMChanges() {
   const observer = new MutationObserver((mutationsList) => {
     for (const mutation of mutationsList) {
-      if (mutation.type === 'childList' && mutation.addedNodes.length > 0) { // only if new nodes are added
+      if (
+        mutation.type === 'childList' && 
+        mutation.addedNodes.length > 0 &&
+        mutation.target == document.getElementById("pjax-container")
+      ) {
         init();
         break; // Exit after handling the first mutation
       }
