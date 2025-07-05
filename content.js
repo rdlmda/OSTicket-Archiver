@@ -60,6 +60,7 @@ function init() {
   addArchiveCounter();
   addArchiveButtons();
   loadArchivedTickets();
+  updateArchiveCounter();
 }
 
 // Helper to compare arrays, as a direct array comparision will always return 
