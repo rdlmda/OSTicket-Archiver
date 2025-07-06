@@ -111,19 +111,81 @@ function is8601(strDate) {
   }
 }
 
-// Helper function for getting the most recent date in an array
-function mostRecentDate(dates) {
-  const validDates = dates.filter(date => date.getTime() !== 0);
-    
-    if (validDates.length === 0) return null; // Return null if no valid dates are found
+function relativeTime(unixTimestamp) {
+  const now = Date.now();
+  const seconds = Math.floor((now - unixTimestamp * 1000) / 1000);
 
-    return validDates.reduce((mostRecent, currentDate) => {
-        return currentDate > mostRecent ? currentDate : mostRecent;
-    });
+  const intervals = [
+    { label: 'year', seconds: 31536000 },
+    { label: 'month', seconds: 2592000 },
+    { label: 'week', seconds: 604800 },
+    { label: 'day', seconds: 86400 },
+    { label: 'hour', seconds: 3600 },
+    { label: 'minute', seconds: 60 },
+    { label: 'second', seconds: 1 },
+  ];
+
+  let remainingSeconds = seconds;
+  const timeComponents = [];
+
+  for (const { label, seconds: intervalSeconds } of intervals) {
+    const count = Math.floor(remainingSeconds / intervalSeconds);
+    if (count > 0) {
+      if (timeComponents.length < 2) {
+        timeComponents.push(`${count} ${label}${count > 1 ? 's' : ''}`);
+        remainingSeconds -= count * intervalSeconds;
+      }
+    }
+  }
+
+  // Format the output
+  if (timeComponents.length === 0) {
+    return 'just now';
+  } else if (timeComponents.length === 1) {
+    return `${timeComponents[0]} ago`;
+  } else {
+    const lastComponent = timeComponents.pop();
+    return `${timeComponents.join(', ')} and ${lastComponent} ago`;
+  }
 }
 
 function mergeDates() {
+  thCell = document.createElement("th");
+  thCell.textContent = "Last Change";
+  rowHeader = ticketForm.querySelector("thead tr");
+  rowHeader.insertBefore(thCell, rowHeader.lastChild);
+
+  x = colHeaders[luIndex];
+  y = colHeaders[lmIndex];
+  z = colHeaders[lrIndex];
+
+  x.remove();
+  y.remove();
+  z.remove();
+
+  dataRows.forEach( row => {
+    const dc = row.cells[dcIndex];
+    const lu = row.cells[luIndex];
+    const lm = row.cells[lmIndex];
+    const lr = row.cells[lrIndex];
     
+    const dcTS = parseDate(dc.textContent);
+    const luTS = parseDate(lu.textContent);
+    const lmTS = parseDate(lm.firstChild.firstChild.dateTime);
+    const lrTS = parseDate(lr.firstChild.firstChild.dateTime);
+    const mostRecent = [dcTS, luTS, lmTS, lrTS]
+      .filter(x => x !== 0)
+      .reduce((y, z) => { return z > y ? z : y; });
+
+    lu.remove();
+    lm.remove();
+    lr.remove();
+
+    tsCell = document.createElement("td");
+    tsCell.textContent = `${(new Date(mostRecent)).toLocaleString("pt-br")}`;
+    tsCell.innerHTML += `<br>(${relativeTime(mostRecent / 1000)})`;
+    row.insertBefore(tsCell, row.lastChild);
+  });
 }
 
 function addArchiveCounter() {
