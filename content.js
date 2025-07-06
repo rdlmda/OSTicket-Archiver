@@ -182,8 +182,14 @@ function mergeDates() {
     lr.remove();
 
     tsCell = document.createElement("td");
-    tsCell.textContent = `${(new Date(mostRecent)).toLocaleString("pt-br")}`;
-    tsCell.innerHTML += `<br>(${relativeTime(mostRecent / 1000)})`;
+    const litDate = document.createElement('span');
+    litDate.textContent = `${(new Date(mostRecent)).toLocaleString("pt-br")}`;
+    const lineBreak = document.createElement('br');
+    const relDate = document.createElement('span');
+    relDate.textContent = `(${relativeTime(mostRecent / 1000)})`;
+    tsCell.appendChild(litDate);
+    tsCell.appendChild(lineBreak);
+    tsCell.appendChild(relDate);
     row.insertBefore(tsCell, row.lastChild);
   });
 }
