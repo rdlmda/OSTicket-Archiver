@@ -171,8 +171,8 @@ function mergeDates() {
     
     const dcTS = parseDate(dc.textContent);
     const luTS = parseDate(lu.textContent);
-    const lmTS = parseDate(lm.firstChild.firstChild.dateTime);
-    const lrTS = parseDate(lr.firstChild.firstChild.dateTime);
+    const lmTS = parseDate(lm.querySelector('.relative').dateTime);
+    const lrTS = parseDate(lr.querySelector('.relative').dateTime);
     const mostRecent = [dcTS, luTS, lmTS, lrTS]
       .filter(x => x !== 0)
       .reduce((y, z) => { return z > y ? z : y; });
